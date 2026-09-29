@@ -1,0 +1,90 @@
+# One container, one replica. The image runs nginx on :80 in front of a node master
+# (:3000) and NUM_WORKERS node game workers (:3001+) under supervisord. A game id
+# routes to its worker by hash % NUM_WORKERS inside this pod, and the lobby and
+# every live game live only in this pod's memory. So:
+#
+# - replicas stays at 1. A second replica behind the same Service would receive
+#   WebSockets for games that exist only in the first one.
+# - strategy is Recreate. A rolling update runs old and new side by side behind
+#   one Service for the same reason; a deploy ends every game in progress either way.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openfront
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: openfront
+  template:
+    metadata:
+      labels:
+        app: openfront
+    spec:
+      # Only needed if the Docker Hub repository is private. Created out of band
+      # (k8s/README.md). If it does not exist, kubelet logs a warning and pulls
+      # anonymously, which is all a public repository needs.
+      imagePullSecrets:
+        - name: dockerhub-pull
+      containers:
+        - name: openfront
+          image: openfront
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: openfront-config
+            # API_KEY, ADMIN_BOT_API_KEY, OTEL_AUTH_HEADER... Created out of band (see
+            # k8s/README.md). Optional: a standalone GAME_ENV=dev deployment needs none.
+            - secretRef:
+                name: openfront-secrets
+                optional: true
+          # Measured idle at NUM_WORKERS=1: 310-400Mi for the container, as the
+          # server's empty public lobbies open and close; each extra worker adds
+          # ~150Mi. It grows with live games: each one keeps its whole turn history
+          # in memory. Resize these with NUM_WORKERS. No CPU limit on purpose:
+          # throttling stalls the 100ms turn loop, and every worker is a
+          # single-threaded node process.
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+              # nginx's proxy cache under /var/cache/nginx is capped at ~1.1Gi
+              # (nginx.conf). Requested so the pod is not first in line for eviction
+              # under node disk pressure.
+              ephemeral-storage: 1Gi
+            limits:
+              memory: 1Gi
+          # /api/health goes through nginx to the master and answers 503 until at
+          # least half the workers are up, so it covers all three layers.
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          # Lenient: the master restarts a crashed worker itself, and health reads
+          # 503 while it comes back. One minute of failures before a restart.
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openfront
+spec:
+  selector:
+    app: openfront
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

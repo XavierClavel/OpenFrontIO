@@ -1,0 +1,37 @@
+# HTTPS only. Traefik redirects every :80 request to websecure cluster-wide
+# (kubeconfig: infrastructure/traefik/helmchartconfig.yaml), which is also what
+# lets cert-manager's HTTP-01 challenge through, so no plain-HTTP Ingress is needed.
+#
+# The certificate comes from the cert-manager annotation alone (ingress-shim creates
+# the Certificate for `secretName`). No Traefik certresolver: cert-manager is the
+# single source of TLS on this cluster.
+#
+# The host is a placeholder: the overlay copies its DOMAIN onto both fields below,
+# so the name is set in one place and cannot drift from the server's DOMAIN.
+#
+# WebSockets need nothing extra: Traefik proxies the upgrade as it is. The game
+# sockets live under /w<N>/ on the same host and nginx inside the pod routes them.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openfront
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - openfront.example.com
+      secretName: openfront-tls
+  rules:
+    - host: openfront.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: openfront
+                port:
+                  name: http

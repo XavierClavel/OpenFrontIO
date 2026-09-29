@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: openfront
+
+resources:
+  - namespace.yaml
+  - ../../base
+
+# The one place the public hostname is written. `replacements` below copies it
+# onto the Ingress, so the server's DOMAIN (JWT audience, API origin, the host
+# the page tells clients to connect to) and the routed host cannot disagree.
+# cert-manager requests a certificate for it as soon as the Ingress exists, so
+# its DNS must point at the cluster first.
+configMapGenerator:
+  - name: openfront-config
+    behavior: merge
+    literals:
+      - DOMAIN=front.xavier.cl
+
+replacements:
+  - source:
+      kind: ConfigMap
+      name: openfront-config
+      fieldPath: data.DOMAIN
+    targets:
+      - select:
+          kind: Ingress
+          name: openfront
+        fieldPaths:
+          - spec.rules.0.host
+          - spec.tls.0.hosts.0
+
+# Built from this repository's Dockerfile and pushed by
+# .github/workflows/k8s-image.yml on every push to main, as `latest` and as the
+# commit SHA. Nothing deploys it: `latest` plus `imagePullPolicy: Always` means
+# the next restart picks up whatever was pushed last (k8s/README.md).
+images:
+  - name: openfront
+    newName: xavierclavel/openfront
+    newTag: latest

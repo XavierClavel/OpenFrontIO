@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Image tags are intentionally absent here: the overlay's `images:` block is the
+# single source of truth for which tag the app image runs.
+resources:
+  - openfront.yaml
+  - ingress.yaml
+
+# Server environment (src/server/ServerEnv.ts). A generator rather than a plain
+# ConfigMap: the name carries a content hash, so changing a value rolls the pod.
+# Deployment-specific values (DOMAIN) are merged in by the overlay.
+configMapGenerator:
+  - name: openfront-config
+    literals:
+      # Standalone mode. "prod" and "staging" need the closed-source OpenFront API
+      # at api.<DOMAIN>: they refuse anonymous players ("persistent ID not allowed
+      # in production") and verify every join against it. Only "dev" is playable
+      # without it. See k8s/README.md before changing this.
+      - GAME_ENV=dev
+      # Game worker processes. One holds every game, however many; more only add
+      # CPU parallelism. Frozen for the life of every game id: ids route by
+      # hash % NUM_WORKERS, so change it only on a deploy. Scale the Deployment's
+      # memory with it (~150Mi per extra worker) and give it one core per worker.
+      - NUM_WORKERS=1
+      # First character of every game id this server mints. Required outside dev;
+      # set anyway so switching GAME_ENV does not crash-loop the pod.
+      - INSTANCE_LETTER=a
+      # Cloudflare's always-pass test key. The page refuses to render without a
+      # key, and dev skips the server-side check anyway.
+      - TURNSTILE_SITE_KEY=1x00000000000000000000AA
+      # Deliberately unset: SUBDOMAIN, GAME_HOST, SITE_HOST and GAME_DOMAIN. Any of
+      # the first two gives the server a public host, which makes it register with
+      # the API and schedule no public lobbies until the API marks it open, so a
+      # standalone deployment would never get any. CDN_BASE is unset too, so the
+      # pod serves its own assets.
+
+# includeSelectors: false: never inject these into Deployment selectors, which
+# are immutable once created.
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: openfront
+      app.kubernetes.io/managed-by: kustomize

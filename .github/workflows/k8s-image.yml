@@ -1,0 +1,88 @@
+name: Kubernetes Image
+
+# Builds the image k8s/overlays/prod runs and pushes it to Docker Hub. It does not
+# deploy: the cluster picks the new image up on the next pod restart
+# (k8s/README.md).
+on:
+  push:
+    branches: ["main"]
+    # Nothing under these can change the image.
+    paths-ignore:
+      - "k8s/**"
+      - "docs/**"
+      - "**/*.md"
+      - ".github/workflows/manifests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One build at a time, none cancelled: every commit on main gets its own
+# immutable tag to roll back to, and runs cannot race on `latest`.
+concurrency:
+  group: k8s-image
+  cancel-in-progress: false
+
+env:
+  # Must match `newName` in k8s/overlays/prod/kustomization.yaml, checked below.
+  IMAGE: xavierclavel/openfront
+  # The cluster node's architecture. Not arm64 by emulation: the Vite build under
+  # QEMU takes many times longer.
+  PLATFORMS: linux/amd64
+
+jobs:
+  build:
+    name: Build and push
+    # Only in the fork this setup belongs to: upstream builds and ships its own
+    # images (deploy.yml, release.yml), and has no Docker Hub credentials for this.
+    if: github.repository_owner == 'XavierClavel'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the overlay pulls this image
+        run: |
+          if ! grep -qE "^\s*newName: ${IMAGE}\s*$" k8s/overlays/prod/kustomization.yaml; then
+            echo "::error::k8s/overlays/prod/kustomization.yaml does not pull ${IMAGE}; this build would push an image the cluster never runs."
+            exit 1
+          fi
+
+      # Swaps OpenFront's proprietary assets for selfhost/proprietary/ and renames
+      # the game (selfhost/README.md). It rewrites this throwaway checkout, which
+      # is the build context below.
+      - name: Replace proprietary assets
+        run: selfhost/apply.sh
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # GIT_COMMIT is the full SHA, like upstream's build.sh: the image serves it
+      # at /commit.txt, so a running pod names the tag it came from.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ env.PLATFORMS }}
+          build-args: GIT_COMMIT=${{ github.sha }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          Pushed \`${IMAGE}:latest\` and \`${IMAGE}:${GITHUB_SHA}\`.
+
+          The cluster runs it after a restart:
+
+          \`\`\`sh
+          kubectl -n openfront rollout restart deployment/openfront
+          \`\`\`
+          EOF
