@@ -1,4 +1,6 @@
 #!/bin/sh
+# shellcheck disable=SC2016 # the `$` in quoted Perl and TypeScript is literal
+#
 # Prepares a checkout for building the self-hosted image. It rewrites the
 # working tree, so run it on a checkout you can throw away: the image workflow
 # (.github/workflows/k8s-image.yml) runs it on its own fresh checkout, and
@@ -13,6 +15,8 @@
 #    untouched.
 # 3. Removes the Steam promotions. They sell OpenFront's Steam release, which
 #    this game is not, and with the new logo beside them read as if it were.
+# 4. Removes the ads, and the ad and ad-blocker scripts that serve them. Their
+#    revenue is OpenFront's, and nothing in the license requires keeping them.
 set -eu
 
 # Safe as-is in HTML text, a double-quoted attribute and JSON. Change the
@@ -103,7 +107,42 @@ patch src/client/hud/layers/WinModal.ts \
 # it when this element exists, and otherwise joins in the browser.
 patch index.html '<steam-handoff-modal></steam-handoff-modal>' ''
 # ...and the setting that would pick Steam for those links without asking.
-# shellcheck disable=SC2016 # a literal template-literal `${`, not a shell expansion
 patch src/client/UserSettingModal.ts '${canHandOffToSteam()' '${false && canHandOffToSteam()'
 
 echo "Removed the Steam promotions."
+
+# edit FILE PERL: applies the Perl substitution PERL to the whole file (so `.`
+# needs /s to cross lines). Fails when it matches nothing, like patch.
+edit() {
+    if ! perl -0777 -pe "$2 or exit 1" "$1" > "$1.tmp"; then
+        rm -f "$1.tmp"
+        echo "apply.sh: no match for $2 in $1; has upstream changed it?" >&2
+        exit 1
+    fi
+    mv "$1.tmp" "$1"
+}
+# The client's one switch for ads: Playwire's homepage and in-game units, and
+# the Admiral ad-blocker popup, all wait on window.adsEnabled. Upstream turns it
+# off for players who bought something; this turns it off for everyone.
+edit src/client/Main.ts 's{(window\.adsEnabled =\s*)(!isAdFree)}{$1false && $2}'
+# The scripts index.html loads whatever that switch says. (?:(?!</script>).)
+# keeps each match inside one <script> element.
+edit index.html 's{\n[ \t]*<script data-cfasync="false">\s*window\.ramp = (?:(?!</script>).)*</script>}{}s'
+edit index.html 's{\n[ \t]*<script>\s*window\.googletag = (?:(?!</script>).)*</script>}{}s'
+edit index.html 's{\n[ \t]*<script\s+async\s+src="https://www\.googletagmanager\.com/gtag/js\?id=AW-[^"]*"\s*></script>\s*<script>(?:(?!</script>).)*gtag\("config", "AW-[^"]*"\);\s*</script>}{}s'
+edit index.html 's{\n[ \t]*<footer>\s*<script[^>]*\ssrc="[^"]*/ramp\.js"[^>]*></script>\s*</footer>}{}s'
+# CrazyGames' SDK only serves its own ads, when the game is embedded there;
+# detecting that (CrazyGamesSDK.isOnCrazyGames) does not need it.
+edit index.html 's{\n[ \t]*<!-- CrazyGames SDK -->\s*<script\s+src="https://sdk\.crazygames\.com/[^"]*"\s+async\s*></script>}{}s'
+if grep -nE 'AdShield|window\.ramp|ramp\.js|googletag\.|gtag/js\?id=AW-|crazygames-sdk' index.html >&2; then
+    echo "apply.sh: ad scripts left in index.html (above)" >&2
+    exit 1
+fi
+# Authorizes OpenFront's ad sellers to sell inventory on whatever domain serves it.
+rm resources/public/ads.txt
+# "Enjoying OpenFront? ... any purchase makes you ad-free": a one-time upsell to
+# OpenFront's store, shown to everyone the API cannot vouch for, which here is
+# everyone.
+edit src/client/components/PurchaseNudgeModal.ts 's{(if \(\s*)(crazyGamesSDK\.isOnCrazyGames\(\) \|\|)}{$1true || $2}'
+
+echo "Removed the ads."

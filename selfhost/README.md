@@ -27,6 +27,12 @@ assets, and under its own name. Both are license requirements, not preferences:
    the setting that goes with it. The widget and button get the same treatment
    they already have inside the Steam app, and the end-of-game window shows one
    of its other promos instead.
+4. **Removes the ads.** No license term requires them, and their revenue is
+   OpenFront's. It turns off the client's ad switch (`window.adsEnabled`), which
+   stops Playwire's homepage and in-game units and the Admiral ad-blocker popup;
+   deletes the ad scripts from `index.html` (Playwire RAMP, Google
+   Publisher Tag, the Google Ads tag, the CrazyGames SDK) and `ads.txt`; and
+   never shows the "any purchase makes you ad-free" upsell.
 
 Upstream's `proprietary/` stays untouched in git, so merging upstream never
 conflicts on these files, and `npm run dev` still shows upstream's assets. The
@@ -92,3 +98,5 @@ cd - && git worktree remove --force ../xf-build
 - **The footer's GitHub link points to upstream.** AGPL §13 asks a modified
   version served over a network to offer users its own source, which is this
   fork.
+- **Analytics.** Google Analytics (`G-WQGQQ8RDN4`) and Cloudflare Web Analytics
+  are not ads and stay, but they report visits to OpenFront's accounts.
