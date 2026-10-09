@@ -20,10 +20,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "selfhost" / "proprietary"
 
-# The wordmark: a small top line over a large bottom line, and the monogram.
-WORDMARK = [("XAVIER'S", 3), ("FRONT", 5)]  # (text, pixel size in grid units)
-MONOGRAM = "XF"
-LINE_GAP = 3  # grid units between the two wordmark lines
+# The wordmark (one or more lines) and the monogram.
+WORDMARK = [("PICTAFRONT", 1)]  # (text, pixel size in grid units) per line
+MONOGRAM = "PF"
+LINE_GAP = 3  # grid units between wordmark lines, if there are several
 
 BLUE = "#0084d1"
 LIGHT = "#e5e7eb"
@@ -31,11 +31,13 @@ LIGHT = "#e5e7eb"
 # 5x7 bitmap glyphs, drawn for this logo. "1" is a lit pixel.
 GLYPHS = {
     "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "C": ["01111", "10000", "10000", "10000", "10000", "10000", "01111"],
     "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
     "F": ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
     "I": ["111", "010", "010", "010", "010", "010", "111"],
     "N": ["10001", "11001", "10101", "10011", "10001", "10001", "10001"],
     "O": ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+    "P": ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
     "R": ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
     "S": ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
     "T": ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
@@ -149,7 +151,7 @@ def main() -> None:
     (images / "OpenFrontLogo.svg").write_text(wordmark(1364, 259, BLUE, sized=False))
     # Light variant for dark backgrounds (upstream uses it in its README only).
     (images / "OpenFrontLogoDark.svg").write_text(wordmark(1310, 298, LIGHT, sized=True))
-    # 11x11 pixel grid, like the original favicon: plain (not bold) XF.
+    # 11x11 pixel grid, like the original favicon: plain (not bold) monogram.
     (images / "Favicon.svg").write_text(monogram(11, 11, BLUE, margin=0, bold=False))
 
     tmp = OUT / ".tmp"

@@ -70,7 +70,7 @@ Docker Hub twice: as `xavierclavel/openfront:latest` and as
 no Docker Hub credentials for it and builds its own images.
 
 Before building, it runs `selfhost/apply.sh`, which replaces OpenFront's
-proprietary assets and renames the game to "Xavier's Front", as the license
+proprietary assets and renames the game to "PictaFront", as the license
 requires of a modified version. See `selfhost/README.md`.
 
 It does not deploy. After a build, restart the pod to pull the new `latest`:
@@ -116,7 +116,7 @@ kubectl apply -k k8s/overlays/prod
 kubectl -n openfront rollout restart deployment/openfront
 ```
 
-The site is served at `front.xavier.cl`, written once as `DOMAIN` in
+The site is served at `pictafront.xavier.cl`, written once as `DOMAIN` in
 `overlays/prod/kustomization.yaml`. That value becomes the server's `DOMAIN` and,
 through `replacements`, the Ingress host and its certificate's name, so they
 cannot drift apart. **Its DNS record must point at the cluster before the first

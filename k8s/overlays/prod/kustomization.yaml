@@ -16,7 +16,7 @@ configMapGenerator:
   - name: openfront-config
     behavior: merge
     literals:
-      - DOMAIN=front.xavier.cl
+      - DOMAIN=pictafront.xavier.cl
 
 replacements:
   - source:

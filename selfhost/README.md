@@ -1,4 +1,4 @@
-# Self-hosted build: Xavier's Front
+# Self-hosted build: PictaFront
 
 The image `k8s/` deploys is built without any of OpenFront Inc.'s proprietary
 assets, and under its own name. Both are license requirements, not preferences:
@@ -18,7 +18,7 @@ assets, and under its own name. Both are license requirements, not preferences:
    every upstream file has a replacement at the same path, and fails otherwise.
    A proprietary asset added upstream therefore stops the build instead of
    shipping in the image.
-2. **Renames the game** to "Xavier's Front": the `<title>` and `og:title` in
+2. **Renames the game** to "PictaFront": the `<title>` and `og:title` in
    `index.html`, `main.title` in every `resources/lang/*.json`, the installed-app
    name in `resources/manifest.json`, and the logo images' alt text.
 3. **Removes the Steam promotions**, which sell OpenFront's Steam release: the
@@ -52,11 +52,11 @@ Left as they are:
 
 | Upstream file                                   | Replacement                                                    |
 | ----------------------------------------------- | -------------------------------------------------------------- |
-| `images/OpenFrontLogo.svg`, `OpenFrontLogo.png` | Pixel wordmark "XAVIER'S / FRONT", same 1364:259 slot          |
+| `images/OpenFrontLogo.svg`, `OpenFrontLogo.png` | Pixel wordmark "PICTAFRONT", same 1364:259 slot                |
 | `images/OpenFrontLogoDark.svg`                  | The same wordmark in light grey                                |
 | `images/OpenFront.png`, `.webp`                 | The wordmark at 1310x298                                       |
-| `images/OF.png`, `.webp`                        | "XF" monogram, the mobile background watermark                 |
-| `images/Favicon.svg`                            | "XF" on the same 11x11 pixel grid                              |
+| `images/OF.png`, `.webp`                        | "PF" monogram, the mobile background watermark                 |
+| `images/Favicon.svg`                            | "PF" on the same 11x11 pixel grid                              |
 | `fonts/OpenFront.ttf`                           | Press Start 2P (SIL Open Font License), for the version label  |
 | `sounds/effects/game-start-alert.mp3`           | The repository's own `resources/sounds/effects/game-start.mp3` |
 | `sounds/music/menu-theme.mp3`, `gameplay.mp3`   | Five seconds of silence each                                   |

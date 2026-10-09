@@ -19,9 +19,9 @@
 #    revenue is OpenFront's, and nothing in the license requires keeping them.
 set -eu
 
-# Safe as-is in HTML text, a double-quoted attribute and JSON. Change the
-# wordmark in selfhost/make-assets.py along with it.
-NAME="Xavier's Front"
+# Must stay safe as-is in HTML text, a double-quoted attribute and JSON. Change
+# the wordmark in selfhost/make-assets.py along with it.
+NAME="PictaFront"
 
 cd "$(dirname "$0")/.."
 
